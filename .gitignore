@@ -1,5 +1,21 @@
 # Byte-compiled / optimized / DLL files
 __pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environments
+.venv/
+
+# Local caches
+src/qlib_ext_se/_cache/
+
+# pytest cache
+.pytest_cache/
+
+# VS Code
+.vscode/
+# Byte-compiled / optimized / DLL files
+__pycache__/
 *.py[codz]
 *$py.class
 
