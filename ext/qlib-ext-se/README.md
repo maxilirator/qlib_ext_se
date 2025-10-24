@@ -41,3 +41,45 @@ If you don’t have a Swedish provider_uri yet, you can still register to enable
 ## License
 
 MIT
+
+## Using from a child app (e.g., qlib_trading)
+
+1) Install dependencies (in your app’s environment):
+
+    - Either install from this repo (editable):
+
+            pip install -e ./ext/qlib-ext-se
+
+    - Or publish and install from your artifact registry as `qlib-ext-se`.
+
+2) Configure EODHD (optional but recommended for high-quality calendar):
+
+    - Environment: `EODHD_API_KEY="<your key>"`
+    - Or TOML:
+
+            # Windows
+            %APPDATA%/qlib-ext-se/config.toml
+
+            # Linux/macOS
+            ~/.config/qlib-ext-se/config.toml
+
+            [eodhd]
+            api_key = "YOUR_KEY"
+
+3) Use at startup before qlib.init:
+
+     import qlib_ext_se
+     qlib_ext_se.register()  # idempotent
+
+     import qlib
+     qlib.init(provider_uri=..., region='se', logging_config=None)
+
+4) Proceed as usual with DatasetH/Trainer; the extension supplies:
+
+    - Region code: `se`
+    - Default index: `OMXS30`
+    - Currency: `SEK`
+    - Trading hours (minute utils): 09:00–17:30 CET/CEST
+    - Default deal_price: `adjusted_close`
+
+Note on Docker: You can omit the extension’s Dockerfile and instead build a single trainer image that includes all custom packages (install this extension in that image). The extension does not require its own container.
