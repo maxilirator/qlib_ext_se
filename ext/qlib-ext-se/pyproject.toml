@@ -1,0 +1,44 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "qlib-ext-se"
+version = "0.1.0"
+description = "Sweden (SE) region extension for pyqlib 0.9.7: Stockholm calendar, defaults, and runtime registry."
+readme = "README.md"
+requires-python = ">=3.9"
+license = { text = "MIT" }
+authors = [{ name = "Your Team" }]
+keywords = ["pyqlib", "quant", "calendar", "stockholm", "sweden", "region"]
+classifiers = [
+  "Programming Language :: Python :: 3",
+  "License :: OSI Approved :: MIT License",
+  "Operating System :: OS Independent",
+]
+dependencies = [
+  "pyqlib==0.9.7",
+  "pandas>=2.0",
+  "pandas-market-calendars>=4.3.2",
+  "python-dateutil",
+  "pytz",
+  "requests>=2.31",
+]
+
+[project.urls]
+Homepage = "https://github.com/maxilirator/qlib_ext_se"
+Issues = "https://github.com/maxilirator/qlib_ext_se/issues"
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["qlib_ext_se*"]
+
+[tool.pytest.ini_options]
+addopts = "-q"
+pythonpath = ["src"]
+
+[eodhd]
+api_key = "68ed752449b284.97754236"
