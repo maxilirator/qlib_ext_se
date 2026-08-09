@@ -17,6 +17,14 @@ and metadata) and GitHub (`gh`, read-only).
 **Redaction.** The committed EODHD token is shown truncated. The full value is in
 `pyproject.toml` and in git history; it is not reproduced here.
 
+**Round-1 addendum (2026-08-09).** E-19, E-20 and E-21 were added after the initial
+baseline, to make the cross-repository claims in
+[02](02-cross-repository-interfaces.md) independently re-derivable. They pin the consumer
+repository to an exact SHA and replace the earlier approximate coupling counts ("20+ call
+sites") with an exhaustive enumeration. Runtime code is unchanged between the assessed
+commit `77d8754` and the commit these were run against — `git diff --stat 77d8754 <HEAD> --
+src tests pyproject.toml Dockerfile` is empty.
+
 ---
 
 ## E-01 — Repository visibility, CI history, open PRs
@@ -486,3 +494,120 @@ read under both conditions of the guard at `config.py:6-9`:
 file is silently ignored. Supports F-17.
 
 (`SAMPLE-KEY` is a placeholder written for this test; the committed token was not used.)
+
+---
+
+## E-19 — The consumer's complete coupling surface, at a pinned SHA
+
+Every consumer-side citation in [02](02-cross-repository-interfaces.md) resolves against one
+commit of `maxilirator/qlib-trading`:
+
+```console
+$ git -C <qlib-trading> rev-parse main
+c8e7c4bcf6cd67daf55fe4102b53212fce072770
+```
+
+Exhaustive enumeration of the coupling, excluding documentation and the binary `profile.out`:
+
+```console
+$ git -C <qlib-trading> grep -lE 'import qlib_ext_se|import_module\("qlib_ext_se"\)' c8e7c4b -- '*.py' | wc -l
+29
+$ git -C <qlib-trading> grep -nE '\.register\(\)' c8e7c4b -- '*.py' | wc -l
+30
+$ git -C <qlib-trading> grep -lE '\.register\(\)' c8e7c4b -- '*.py' | wc -l
+28
+$ git -C <qlib-trading> grep -nE '\.unregister\(\)' c8e7c4b -- '*.py' | wc -l
+0
+$ git -C <qlib-trading> grep -nE 'qlib_ext_se\.(calendar|defaults|config|compat|region)|from qlib_ext_se import' c8e7c4b -- '*.py'
+(no matches)
+$ git -C <qlib-trading> grep -lE 'qlib_ext_se|qlib-ext-se' c8e7c4b -- 'docker/Dockerfile*' | wc -l
+8
+$ git -C <qlib-trading> ls-files c8e7c4b | grep -icE 'requirements.*\.txt|\.lock|constraints'
+0
+```
+
+Every one of the 30 `.register()` matches is `qlib_ext_se.register()` or
+`qles.register()` (verified: filtering those two spellings out leaves an empty set).
+
+**Four facts follow, and they are what §5.4 of [02](02-cross-repository-interfaces.md)
+rests on:**
+
+1. The consumer imports `qlib_ext_se` in 29 modules and calls `register()` 30 times in 28 of
+   them. (The 29th is `tests/test_qlib_data_connector.py:13`, a bare
+   `pytest.importorskip("qlib_ext_se")`.)
+2. `unregister()` has **zero** consumer call sites.
+3. The consumer imports **no submodule** of this package and accesses **no attribute** other
+   than `.register()`. The entire runtime contract is one nullary function.
+4. Neither repository has a lock or constraints file, so nothing records which revision of
+   this package any past build or run used.
+
+This replaces the approximate "20+ call sites" figure used in the initial baseline.
+
+---
+
+## E-20 — `register()` reaches no calendar data tier and performs no I/O
+
+The claim being tested: the missing wheel data file (E-06/E-07, F-02), the cache
+`PermissionError` (E-11, F-03), and the divergent `normalize_symbol` (E-16, F-10) are all
+present in the images the consumer builds, yet none of them can be triggered through
+`register()` — the only entry point the consumer uses (E-19).
+
+Run in the CPython 3.12.13 environment with the package installed, with every calendar data
+tier replaced by a raiser **and** outbound sockets disabled:
+
+```python
+import socket
+import qlib_ext_se.calendar as cal
+
+def boom(*a, **k): raise AssertionError("calendar tier reached")
+cal.build_xsto_trading_days = boom
+cal.is_trading_day          = boom
+cal._generate_with_pmc      = boom     # tier 2: pandas-market-calendars
+cal._read_days_from_csv     = boom     # tier 3: embedded CSV
+cal._fetch_holidays_eodhd   = boom     # tier 1: EODHD
+
+_orig = socket.socket
+class NoNet(_orig):
+    def connect(self, *a, **k): raise AssertionError("network reached")
+socket.socket = NoNet
+
+import qlib_ext_se, qlib.config as qc, qlib.constant as qk
+qlib_ext_se.register()
+```
+
+```
+register() OK with all calendar data tiers and network sabotaged
+REG_SE: se
+se config: {'trade_unit': 1, 'limit_threshold': None, 'deal_price': 'adjusted_close'}
+```
+
+`register()` completes and installs the correct region configuration. The only calendar
+symbol on its path is `se_trading_hours()` (`region.py:9` imports it; `calendar.py:157-159`
+returns a hardcoded tuple with no I/O).
+
+**Conclusion.** F-02, F-03 and F-10 are real and shipped, and are currently unreachable from
+`qlib-trading` — contained by non-use, not by design. One import statement in the consumer
+activates any of them. Also re-confirms C-3 independently of E-10.
+
+---
+
+## E-21 — Test suite re-run at the documentation commit
+
+Confirming that the docs-only work in this round did not disturb the baseline recorded in
+E-03, and that E-03 still reproduces:
+
+```console
+$ uv venv -p 3.12 .venv && uv pip install -e ./repo pytest
+$ .venv/bin/python -c "import qlib,sys;print('pyqlib',qlib.__version__);print('py',sys.version.split()[0])"
+pyqlib 0.9.7
+py 3.12.13
+
+$ .venv/bin/python -m pytest -q -p no:cacheprovider -W ignore::DeprecationWarning
+..s..                                                                    [100%]
+exit=0
+```
+
+4 passed, 1 skipped — unchanged from E-03. (The venv and a scratch copy of the repository
+were created under `/workspace/artifacts/d9ae1c83-…/verify/`, never in the working tree; the
+`-e` install therefore did not write a `_cache/` directory into the repository, cf. E-11 and
+F-12.)

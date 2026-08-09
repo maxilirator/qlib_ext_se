@@ -103,6 +103,11 @@ consumer's images. That inherited posture has four verified defects:
 4. **Builds are not reproducible** — moving `@main` ref, no lock file, unbounded dependency
    floors (F-09, F-14).
 
+Defects 1 and 3 are shipped in every consumer image but are not currently *reachable* from
+consumer code, because `register()` — the only symbol the consumer calls — touches no
+calendar tier (E-19/E-20). That is containment by non-use, one import statement deep; see
+[02 §5.4](02-cross-repository-interfaces.md). Defects 2 and 4 are reachable today.
+
 The consumer's own Dockerfiles document two of these against themselves, in comments, as
 known workarounds (`Dockerfile.gpu:61`, `Dockerfile.gpu.arm:57`). The gap is not awareness;
 it is that neither repository owns closing them.
