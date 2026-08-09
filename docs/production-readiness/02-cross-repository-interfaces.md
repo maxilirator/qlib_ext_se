@@ -545,9 +545,9 @@ and `docs/production-readiness/verification.md:26` at `16425ce`):
 > compatibility matrix, registration idempotency, package data, reverse-import absence, and
 > pinned revision must be established in the `qlib_ext_se` repository
 
-Each is answered below with its evidence. Two are guarantees this repository can currently
-give; two are **negative results** — the honest answer is that the guarantee does not hold
-today; one is a fact rather than a promise.
+Each is answered below with its evidence. Two hold; two do **not** hold as declared — the
+honest answer is a negative result, not a reassurance; and one is a statement of fact rather
+than a promise, because there is currently nothing to promise.
 
 ### G-1 — Supported pyqlib / Python compatibility matrix
 
@@ -556,9 +556,9 @@ today; one is a fact rather than a promise.
 | `pyqlib` | `==0.9.7` (`pyproject.toml:20`) | `compat.py:7` at runtime, `SUPPORTED_PYQLIB_VERSIONS = ("0.9.7",)` | 0.9.7 only. 0.9.3 / 0.9.6 / 0.9.8 verified **rejected** with an actionable `RuntimeError` (E-13, E-22) |
 | Python | `>=3.9`, no upper bound (`pyproject.toml:10`) | pip, at install | **3.12 only.** CI is single-version (`.github/workflows/ci.yml:14`); the `Dockerfile` uses `python:3.12-slim` |
 
-**The declared matrix is wider than the tested one, in both axes and in opposite directions.**
-`pyqlib` is declared narrower than it is proven to need (one version, exercised at that one
-version — this is sound); Python is declared wider than anything tested, and wider than the
+**The two axes are declared in opposite directions, and only one of them is honest.** The
+`pyqlib` pin is exact and is exercised at exactly that version — declaration and evidence
+agree. The Python range is declared far wider than anything tested, and wider than the
 mandatory dependency supports: `pyqlib==0.9.7` publishes 18 wheels for cp38–cp312 and **no
 sdist**, so 3.13 cannot resolve at all (E-04), and on 3.9/3.10 the TOML credential path is
 silently inert because `tomllib` is 3.11+ (E-18).
