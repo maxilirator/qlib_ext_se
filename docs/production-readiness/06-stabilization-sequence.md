@@ -219,6 +219,24 @@ Steps 2 and 3 are independent of each other and of Step 4; they can run concurre
 Step 1 lands. Step 6 should follow Step 5 so the corrections are made against a suite that
 can detect a regression.
 
+### Which steps close the guarantees `qlib-trading` is waiting on
+
+The consumer's baseline blocks its own promotion on five provider guarantees, answered
+individually in [02 §8](02-cross-repository-interfaces.md). Two already hold; the other three
+are closed by the steps above, and this is the order in which the consumer will see them:
+
+| Guarantee | Status today | Closed by |
+|---|---|---|
+| G-2 registration idempotency | **holds** (E-10, E-20) | — keep it holding: it is the only contract the consumer actually exercises |
+| G-4 reverse-import absence | **holds** (E-24) | — |
+| G-5 tested/pinned revision | no tag, no published artifact | **Step 1**, and nothing the consumer can do first |
+| G-3 package data / calendar | wheel omits the fallback CSV | **Step 2**, then Step 6 for session hours and tier semantics |
+| G-1 pyqlib/Python matrix | pyqlib 0.9.7 + CPython 3.12 only, declared range wider | **Step 4**, jointly with the consumer |
+
+Steps 1 and 2 are therefore the two that unblock the *other* repository, and they are also
+the cheapest. Nothing in the consumer's stabilization sequence can proceed past its own
+"freeze identities" gate until Step 1 produces something to pin.
+
 ## Definition of "production-ready" for this package
 
 Derived from the findings, so completion is checkable rather than a judgement call:

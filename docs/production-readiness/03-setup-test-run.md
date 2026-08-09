@@ -1,7 +1,8 @@
 # 03 — Reproducible setup, test, and run procedures
 
-Every procedure below was executed against commit `77d8754` during this assessment. Raw
-output is in [`evidence-log.md`](evidence-log.md). Nothing here is aspirational.
+Every procedure below was executed against `src` tree `6f1b143` / `tests` tree `d91f05a`
+(identical at `77d8754` and at `049f406`, tip of `main`), and re-executed in round 2 (E-22).
+Raw output is in [`evidence-log.md`](evidence-log.md). Nothing here is aspirational.
 
 ## 1. Prerequisites — read this first
 
@@ -102,6 +103,18 @@ environment is incomplete, not that the code is broken.**
 
 Measured statement coverage (E-15):
 
+```bash
+rm -rf src/qlib_ext_se/_cache        # required — see below
+python -m coverage run --source=src/qlib_ext_se -m pytest -q && python -m coverage report -m
+```
+
+⚠️ **The cache must be cleared first, or the numbers are not reproducible.** `pytest`
+populates `src/qlib_ext_se/_cache/` (F-03, F-12), and on a second run the calendar tests hit
+tier 0 instead of tier 2. The same command then reports **52%**, with `calendar.py` at 34%
+and `config.py` at 31%, because the cache hit returns before `get_eodhd_api_key()` and the
+tier logic are reached. Both numbers were reproduced in round 2 (E-22); 62% is the figure
+for a clean tree, which is what CI and a fresh checkout see.
+
 ```
 Name                          Stmts   Miss  Cover
 src/qlib_ext_se/__init__.py       3      0   100%
@@ -132,7 +145,8 @@ behave correctly, nor that any calendar tier degrades as documented.
 ### 3.2 CI
 
 `.github/workflows/ci.yml`: one job, `ubuntu-latest`, Python 3.12, `pip install -e .`,
-`pytest -q`. Recent runs are green, including 1m17s–1m22s runs on 2026-08-09 (E-01).
+`pytest -q`. Every run is green, including the six 2026-08-09 runs of this initiative's own
+documentation branches, 1m18s–1m26s (E-01).
 
 CI is a valid environment, so its green status is meaningful — but narrow. It does not
 build a wheel (so F-02 is invisible to it), does not lint or type-check, does not test any

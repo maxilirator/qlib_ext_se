@@ -5,7 +5,7 @@ to a finding in [04](04-failure-modes.md), the ID is given so remediation is not
 
 ## 1. Release and versioning
 
-| Question | Answer at `77d8754` |
+| Question | Answer at `src` tree `6f1b143` (`77d8754`, `049f406`) |
 |---|---|
 | How is a release produced? | No procedure exists |
 | Where is it published? | Nowhere — `qlib-ext-se` is not on PyPI (HTTP 404, E-14) |
@@ -37,7 +37,7 @@ change.
 | Interpreter matrix | **No** — 3.12 only, against a declared 3.9–3.12 range (F-15) |
 | Container test | Nominally yes; runs zero tests (F-06) |
 | Dependency audit | **No** |
-| Secret scanning | **No** — F-01 has been in `main` since 2025-10-24 undetected |
+| Secret scanning | **No** — F-01 has been in `main` since 2025-10-24 undetected, and is now carried by 7 commits reachable from `main` (E-05) |
 
 **Cost.** CI is green and has been green through every finding in this document. The gate
 answers "does it import and pass 4 tests on one interpreter", which is a much weaker
@@ -120,8 +120,9 @@ minimal that is defensible, but the cache-location gap directly causes F-03.
 ## 6. Ownership and process
 
 No `CODEOWNERS`, no `SECURITY.md`, no `CONTRIBUTING.md`; `authors = [{ name = "Your Team" }]`
-is an unedited template (F-19). All substantive commits are from a single author on
-2025-10-24 (E-01), and the current CI history shows the repository is otherwise dormant.
+is an unedited template (F-19). Every commit that touches runtime code is from a single
+author on 2025-10-24; everything since is documentation from this initiative (E-01, E-22), so
+the repository is dormant as far as the shipped package is concerned.
 
 **Cost.** There is no route for a security report about F-01, no reviewer of record for
 changes that flow straight into consumer images via `@main`, and a bus factor of one. The
