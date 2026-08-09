@@ -2,6 +2,8 @@
 
 **Date of assessment:** 2026-08-09
 **Commit assessed:** `77d8754` (`main`)
+**Consumer commit referenced:** `qlib-trading` `c8e7c4b` (tip of `main`) — every
+consumer-side citation in [02](02-cross-repository-interfaces.md) resolves under that SHA
 **Scope:** this repository (`qlib_ext_se`) and its interface with the consuming
 repository `qlib-trading`.
 **Method:** every claim below is reproduced from repository evidence, executed in a
@@ -15,12 +17,12 @@ credential, or external service was modified by this work.
 | Document | Contents |
 |---|---|
 | [01 — Architecture and ownership](01-architecture-and-ownership.md) | Module map, the `register()` runtime path, ownership boundaries |
-| [02 — Cross-repository interfaces](02-cross-repository-interfaces.md) | Dependency direction, declared vs. de-facto API, contracts C-1…C-9 |
+| [02 — Cross-repository interfaces](02-cross-repository-interfaces.md) | Dependency direction, declared vs. de-facto API, contracts C-1…C-9, version assumptions V-1…V-7, failure propagation P-1…P-10, remediation ownership |
 | [03 — Setup, test, run](03-setup-test-run.md) | Reproducible procedures, executed and timed; coverage reality |
 | [04 — Failure modes](04-failure-modes.md) | 19 findings, F-01…F-19, ranked P0–P3 |
 | [05 — Operational gaps](05-operational-gaps.md) | Release, observability, secrets, deployment, ownership |
 | [06 — Stabilization sequence](06-stabilization-sequence.md) | Ordered remediation with exit criteria |
-| [evidence-log.md](evidence-log.md) | E-01…E-16: every command with its output |
+| [evidence-log.md](evidence-log.md) | E-01…E-21: every command with its output |
 
 ## Executive assessment
 
@@ -39,6 +41,9 @@ boundary with the consuming repository. Three verified facts carry most of the r
    package exactly that way — `pip install git+https://github.com/maxilirator/qlib_ext_se.git@main`
    in its production Dockerfiles. In those images the documented last-resort calendar tier
    does not exist, and a `pandas-market-calendars` failure propagates instead of degrading. (F-02, E-06/E-07)
+   It does not reach the consumer *today*, and the reason is narrow: `register()` — the only
+   symbol the consumer uses — touches no calendar tier (E-19/E-20). The defect is contained by
+   non-use, not by design; one import statement in the consumer activates it.
 2. **An EODHD API token is committed to this public repository** and has been since
    2025-10-24. It is present at `HEAD` in `pyproject.toml:43-44`. (F-01, E-05)
 3. **The pinned dependency contract is violated by the consumer on one architecture.**
@@ -61,7 +66,7 @@ matter under failure (E-15).
 | Required criterion | Status | Where |
 |---|---|---|
 | Architecture and ownership boundaries | Verified | [01](01-architecture-and-ownership.md) |
-| Cross-repository interfaces and dependency direction | Verified against the consumer checkout | [02](02-cross-repository-interfaces.md) |
+| Cross-repository dependency direction, integration contracts, version assumptions, and failure propagation | Verified against `qlib-trading` pinned at `c8e7c4b`; every consumer citation re-derivable (E-19) | [02](02-cross-repository-interfaces.md), E-19/E-20 |
 | Reproducible setup / test / run procedures | Executed end-to-end, not merely described | [03](03-setup-test-run.md), E-01…E-04 |
 | Prioritized failure modes | 19 findings, each with a reproduction | [04](04-failure-modes.md) |
 | Operational gaps | Verified | [05](05-operational-gaps.md) |

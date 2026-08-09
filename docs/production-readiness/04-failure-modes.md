@@ -105,7 +105,17 @@ others. The defect is invisible to CI and to local development because both use
 **Failure scenario:** `pandas-market-calendars` is unavailable, incompatible after a
 transitive upgrade, or raises on a requested range. On a developer machine the embedded
 snapshot answers. In the production image the exception propagates out of
-`build_xsto_trading_days` into `register()`/data preparation and the job dies.
+`build_xsto_trading_days` into the caller's data-preparation path and the job dies.
+
+**Cross-repository reach today: none — and the reason is narrow.** `register()` does *not*
+sit on this path: with every calendar tier and all networking sabotaged, `register()` still
+completes (E-20), because the only calendar symbol it touches is the hardcoded
+`se_trading_hours()`. And `qlib-trading` at `c8e7c4b` imports no submodule of this package
+and calls nothing but `register()` (E-19). So the defect is shipped in every consumer image
+and is currently unreachable from consumer code — **contained by non-use, not by design**.
+The first consumer line that follows `README.md:29-30` and calls `build_xsto_trading_days`
+or `is_trading_day` activates it. This is a reason to fix it cheaply now, not a reason to
+downgrade it. See [02 §5.4](02-cross-repository-interfaces.md).
 
 **Remediation:** add `[tool.setuptools.package-data] "qlib_ext_se" = ["data/*.csv"]`, then
 assert the file's presence in a packaging test (see F-11).
@@ -136,6 +146,10 @@ package is unusable, and the error surfaces as a permission problem rather than 
 configuration one. Because the write is attempted before the tiers, *all three* fallbacks
 are defeated by it.
 
+**Cross-repository reach today: none.** Same containment as F-02 — the write happens inside
+`build_xsto_trading_days`, which `register()` never calls (E-20) and the consumer never
+calls (E-19). See [02 §5.4](02-cross-repository-interfaces.md).
+
 **Remediation:** resolve the cache to a user/state directory (`XDG_CACHE_HOME`,
 `~/.cache/qlib-ext-se`) with an environment override, and make cache-write failure
 non-fatal — a cache miss should degrade to recomputation, never to an exception.
@@ -154,6 +168,15 @@ consumer's arm64 image installs `pyqlib==0.9.3`, then installs this package with
 workaround. `Dockerfile.gpu`, `.gpu.lite`, `.app-gpu-wheel`, `.app-gpu-wheel-cupybase`
 default `aarch64|arm64` to `0.9.3` and fall back to it if the requested version is
 unavailable.
+
+**A second, subtler mechanism in `docker/Dockerfile.gpu` (E-19):** the pin is satisfied and
+then invalidated by a later layer. Line 62 installs this package *with* deps, correctly
+pulling `pyqlib==0.9.7`; lines 68-78 then install pyqlib again from an arch switch
+(`x86_64→0.9.7`, `aarch64|arm64→0.9.3`, `*→0.9.6`), overwriting it; line 81 reinstalls this
+package with `--no-deps`, so pip never re-checks. On x86_64 the arch default happens to match
+the pin, so the image is consistent **by coincidence**. Any other architecture, or any
+`--build-arg QLIB_VERSION=<other>`, ends with a rejected pyqlib and a silent build. See
+[02 §C-5](02-cross-repository-interfaces.md).
 
 **Evidence (E-13):** the gate's behaviour across versions —
 
@@ -303,8 +326,10 @@ on install ordering.
 
 ### F-09 — Consumer images install from the moving `@main` ref
 
-**Location:** consumer `docker/Dockerfile.gpu:62,81`, `Dockerfile.gpu.arm:60`, and the other
-GPU variants
+**Location:** consumer `docker/Dockerfile.gpu:62,81`, `Dockerfile.gpu.arm:60`,
+`Dockerfile.gpu.lite:42`, `Dockerfile.oracle-continuation-cloud:36` (all hardcoded `@main`),
+plus `Dockerfile.app-gpu-wheel:60`, `Dockerfile.app-gpu-wheel-cupybase:42` and
+`Dockerfile.runpod-retune:62` (`ARG QLIB_EXT_SE_REF=main` — overridable, unpinned by default)
 
 ```dockerfile
 RUN pip install --no-cache-dir "git+https://github.com/maxilirator/qlib_ext_se.git@main#egg=qlib_ext_se"
@@ -314,12 +339,15 @@ RUN pip install --no-cache-dir "git+https://github.com/maxilirator/qlib_ext_se.g
 or commit SHA, e.g. @v0.1.0 or @<COMMIT_SHA>" — the risk is documented and unaddressed.
 
 **Failure scenario:** any commit to this repository's default branch silently changes the
-next consumer image build. There is no lock file on either side, no tag, and no review gate
-between the repositories, so a change here can reach a consumer image without any consumer
-change. Two builds of the same consumer commit can produce different images — which also
-means a consumer failure cannot be reliably reproduced from its own git history.
+next consumer image build. Neither repository has a lock or constraints file (verified at
+`c8e7c4b` — E-19), there is no tag, and there is no review gate between the repositories, so
+a change here can reach a consumer image without any consumer change. Two builds of the same
+consumer commit can produce different images — which also means a consumer failure cannot be
+reliably reproduced from its own git history, and no completed research artifact can be
+attributed to a provider revision (see [02 §5.6](02-cross-repository-interfaces.md)).
 
 **Remediation:** tag releases here and pin the consumer to tags or SHAs. Depends on F-08.
+Pinning is the consumer's edit; having something to pin to is this repository's.
 
 ---
 
@@ -346,10 +374,14 @@ implementation only strips a `.ST` suffix, so `'ABB.XSTO'` becomes the double-su
 
 `normalize_symbol` has **no test** (`defaults.py:13-20` is 0% covered, E-15).
 
-**Failure scenario:** currently inert — the consumer never imports it. The trap is that a
-future consumer author follows `INSTRUCTIONS.md`, adopts the extension's helper for one
-code path, and silently produces instrument identifiers that do not join against the
-existing ones. The resulting mismatch surfaces as missing data, not as an error.
+**Failure scenario:** currently inert — the consumer never imports it (verified exhaustively
+at `c8e7c4b`: no `from qlib_ext_se import …` and no submodule import anywhere in the consumer
+tree, E-19). The trap is that a future consumer author follows `INSTRUCTIONS.md`, adopts the
+extension's helper for one code path, and silently produces instrument identifiers that do
+not join against the existing ones — the consumer's own `normalize_symbols` is already wired
+into `QlibDataConnector.normalize_instruments`
+(`src/q_train/data/qlib_data_connector.py:217-218`). The resulting mismatch surfaces as
+missing data, not as an error.
 
 **Remediation:** decide ownership. Either delete it from this package and correct
 `INSTRUCTIONS.md`, or make it canonical, fix the suffix handling, test it, and migrate the
