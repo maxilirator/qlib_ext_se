@@ -1,6 +1,8 @@
 # 01 — Architecture and ownership boundaries
 
-Assessed at commit `77d8754`.
+Assessed against `src` tree `6f1b143` / `tests` tree `d91f05a` — identical at `77d8754`, at
+`049f406` (tip of `main`), and on this documentation branch (E-22). Line references below are
+to the working tree at those trees.
 
 ## 1. What this package is
 
@@ -42,8 +44,9 @@ module that mutates global state.
 
 ## 3. The `register()` runtime path
 
-`register()` (`region.py:102-111`) performs four steps, in order, with no transaction
-semantics — a failure in step 3 leaves steps 1–2 applied.
+`register()` (`region.py:102-111`) makes five calls, in order — a version gate, three
+mutations, and a log line — with no transaction semantics: a failure in step 4 leaves steps
+2–3 applied.
 
 | Step | Function | Mutation | Reversible? |
 |---|---|---|---|

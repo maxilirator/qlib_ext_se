@@ -10,30 +10,36 @@ and `qlib_ext_se` (this repository, provider):
    stage is it detected, what does the other side observe, and what is contained?** — §5
 
 §6 summarises. §7 states which side owns each remediation, because several of the defects
-found here are **not fixable in this repository**.
+found here are **not fixable in this repository**. §8 answers, item by item, the five
+provider guarantees that the `qlib-trading` baseline explicitly delegates to this repository.
 
 ---
 
 ## 0. Provenance — how to re-verify every claim in this document
 
 Consumer-side claims are read from an actual checkout, not inferred. Both sides are pinned
-so that every citation below is re-derivable:
+so that every citation below is re-derivable, and both pins are stated as **content
+identity** rather than a bare commit SHA — documentation commits on either side move `HEAD`
+without changing a line of the code these claims are about:
 
-| Repository | Role | Ref used for every citation here |
+| Repository | Role | Pin used for every citation here |
 |---|---|---|
-| `maxilirator/qlib_ext_se` | provider (this repo) | `dce851e` on `agent/task-c77d408e-…`; runtime code identical to `77d8754` on `main` (`git diff --stat 77d8754 dce851e -- src tests pyproject.toml Dockerfile` is empty) |
-| `maxilirator/qlib-trading` | consumer | `c8e7c4bcf6cd67daf55fe4102b53212fce072770` (`c8e7c4b`), tip of `main` |
+| `maxilirator/qlib_ext_se` | provider (this repo) | `src` tree `6f1b143`, `tests` tree `d91f05a` — identical at `77d8754`, `049f406` (tip of `main`) and on this documentation branch |
+| `maxilirator/qlib-trading` | consumer | `16425ce9f8fc85d717d9d84164418301e72dc69b` (`16425ce`), tip of `main` at 2026-08-09 21:19:58 +0200. Code trees identical to `c8e7c4b`, the round-1 pin: `git diff --name-only c8e7c4b 16425ce -- . ':!docs'` is empty |
 
 Every `qlib-trading` path/line reference in this document is written as
-`<path>:<line>` and resolves under that SHA. To reproduce any of them:
+`<path>:<line>` and resolves under **either** SHA. To reproduce any of them:
 
 ```console
-$ git -C <qlib-trading> show c8e7c4b:<path> | sed -n '<line>p'
-$ git -C <qlib-trading> grep -n "qlib_ext_se" c8e7c4b -- ':!docs' ':!profile.out'
+$ git -C <qlib-trading> show 16425ce:<path> | sed -n '<line>p'
+$ git -C <qlib-trading> grep -n "qlib_ext_se" 16425ce -- ':!docs' ':!profile.out'
 ```
 
 Raw enumerations are in [`evidence-log.md`](evidence-log.md) as **E-19** (the complete
-consumer coupling surface at `c8e7c4b`) and **E-20** (the containment experiment in §5.4).
+consumer coupling surface, enumerated at `c8e7c4b` and re-derived unchanged at `16425ce`)
+and **E-20** (the containment experiment in §5.4). **E-22** records the round-2
+re-derivation of both pins and of every measurement below.
+
 This document adds no unverified claim about the consumer; where a statement depends on
 running the consumer's images — which was not done — it is labelled **not executed** and
 listed in §7 as belonging to operational verification.
@@ -45,7 +51,7 @@ listed in §7 as belonging to operational verification.
 ```
         ┌──────────────────────┐
         │     qlib-trading     │   research + live handoff stack
-        │  (package: q_train)  │   main @ c8e7c4b
+        │  (package: q_train)  │   main @ 16425ce
         └──────────┬───────────┘
                    │ depends on   "qlib-ext-se>=0.1.0"   (pyproject.toml:14)
                    ▼
@@ -78,7 +84,7 @@ shows, several of them travel without producing any signal at all.
 
 **Declared** (`__init__.py:8`, `__all__`) — two names:
 
-| Symbol | Signature | Consumer usage at `c8e7c4b` |
+| Symbol | Signature | Consumer usage at `16425ce` |
 |---|---|---|
 | `register()` | `() -> None` | **30 call sites across 28 Python files** (E-19) |
 | `unregister()` | `() -> None` | **zero** call sites |
@@ -304,7 +310,7 @@ consumer never imports it, this is currently inert; it is a live trap for anyone
 
 `docker/Dockerfile.gpu:61` carries the mitigating comment "For full reproducibility, replace
 @main with a tag or commit SHA, e.g. @v0.1.0 or @<COMMIT_SHA>" — acknowledged and not done.
-Neither repository has a lock file (verified: `qlib-trading` at `c8e7c4b` tracks no
+Neither repository has a lock file (verified: `qlib-trading` at `16425ce` tracks no
 `requirements*.txt`, `*.lock`, or constraints file — E-19).
 
 **Any commit to this repository's default branch changes the next consumer image build, with
@@ -411,7 +417,7 @@ for a design property:
 
 Two verified facts establish it:
 
-1. **The consumer touches nothing but `register()`.** Exhaustive grep at `c8e7c4b` (E-19):
+1. **The consumer touches nothing but `register()`.** Exhaustive grep at `16425ce` (E-19):
    no `from qlib_ext_se import …`, no `qlib_ext_se.<submodule>` import, no attribute access
    other than `.register()`, in any of `src/`, `scripts/`, or `tests/`.
 2. **`register()` never reaches a calendar data tier.** Verified by execution (E-20): with
@@ -524,3 +530,118 @@ These require building and running the consumer's images, which this assessment 
   "no impact today".
 - Determining which provider commit each historical research artifact was produced against —
   which, per §5.6, is **not currently recoverable** for any run already completed.
+
+---
+
+## 8. The five provider guarantees the consumer baseline delegates here
+
+The `qlib-trading` baseline does not merely note that the provider is out of its scope — it
+names the specific guarantees it needs and marks them **"Owned by `qlib_ext_se`; not
+establishable in this checkout"** (`docs/production-readiness/qlib-trading-baseline.md:80`
+and `docs/production-readiness/verification.md:26` at `16425ce`):
+
+> the provider must declare its supported pyqlib/Python matrix, package-data/calendar
+> guarantees, registration idempotency, and tested extension revision […] its supported
+> compatibility matrix, registration idempotency, package data, reverse-import absence, and
+> pinned revision must be established in the `qlib_ext_se` repository
+
+Each is answered below with its evidence. Two are guarantees this repository can currently
+give; two are **negative results** — the honest answer is that the guarantee does not hold
+today; one is a fact rather than a promise.
+
+### G-1 — Supported pyqlib / Python compatibility matrix
+
+| Axis | Declared | Enforced | Actually exercised |
+|---|---|---|---|
+| `pyqlib` | `==0.9.7` (`pyproject.toml:20`) | `compat.py:7` at runtime, `SUPPORTED_PYQLIB_VERSIONS = ("0.9.7",)` | 0.9.7 only. 0.9.3 / 0.9.6 / 0.9.8 verified **rejected** with an actionable `RuntimeError` (E-13, E-22) |
+| Python | `>=3.9`, no upper bound (`pyproject.toml:10`) | pip, at install | **3.12 only.** CI is single-version (`.github/workflows/ci.yml:14`); the `Dockerfile` uses `python:3.12-slim` |
+
+**The declared matrix is wider than the tested one, in both axes and in opposite directions.**
+`pyqlib` is declared narrower than it is proven to need (one version, exercised at that one
+version — this is sound); Python is declared wider than anything tested, and wider than the
+mandatory dependency supports: `pyqlib==0.9.7` publishes 18 wheels for cp38–cp312 and **no
+sdist**, so 3.13 cannot resolve at all (E-04), and on 3.9/3.10 the TOML credential path is
+silently inert because `tomllib` is 3.11+ (E-18).
+
+**Guarantee this repository can give today:** pyqlib exactly 0.9.7 on CPython 3.12.
+Everything else in the declared range is untested. F-05 and F-17 track the correction; V-1,
+V-2, V-5 and V-7 in §4 state where each is enforced.
+
+### G-2 — Registration idempotency
+
+**Holds — verified by execution, not by inspection (E-10, re-run in E-22).**
+
+- `register()` is guarded per patch: constants (`region.py:17`), region config
+  (`region.py:26`), and the `_ORIGINALS` capture (`region.py:47-50`) each write only when
+  absent. A second call does not grow `_default_region_config`.
+- The installed region config is exactly
+  `{'trade_unit': 1, 'limit_threshold': None, 'deal_price': 'adjusted_close'}` (C-3).
+- Non-`se` regions are untouched: `cn` still yields 240 minute bars after registration.
+- `unregister()` restores `get_min_cal` to the **identical original function object**, and
+  removes `REG_SE`.
+- `register()` completes with every calendar tier sabotaged and outbound sockets disabled
+  (E-20), so it is idempotent *and* I/O-free — which is why the consumer's two import-time
+  call sites are safe.
+
+This is the guarantee the consumer relies on most heavily (28 modules, 2 of them at import
+time) and it is the one in the best shape. One asymmetry is recorded as F-16: `unregister()`
+removes state regardless of who installed it.
+
+### G-3 — Package-data and calendar guarantees
+
+**Does not hold as packaged. This is F-02, the P0 of this baseline.**
+
+| Question | Answer | Evidence |
+|---|---|---|
+| Is the fallback calendar shipped in a wheel? | **No.** The wheel contains 6 `.py` files and `dist-info`, nothing else | E-06, E-22 |
+| Is it present in the install method the consumer uses (`pip install git+…`)? | **No** — that path builds the same wheel | E-06/E-07 |
+| Does the documented three-tier degradation work there? | **No** — with tier 2 forced to fail the exception propagates | E-07 |
+| Is the calendar data itself correct where it *is* present? | **Yes, exactly** — 9,041 sessions, 2000-01-03 → 2035-12-28, zero divergence from `pandas-market-calendars` XSTO in either direction | E-08, E-22 |
+| Are the calendar tiers equivalent? | **No** — tier 1 synthesizes Mon–Fri minus an EODHD holiday list; an empty holiday response yields 261 sessions for 2025 against the exchange's 249 | E-23, F-13 |
+| Are session *hours* modelled per date? | **No** — a constant 09:00–17:30, so 510 minute bars on the 4 XSTO early-close days of 2025 where 240 are real | E-09/E-10, F-07 |
+
+**Guarantee this repository can give today:** in an **editable/source** install the embedded
+calendar is present and exactly correct. In a **wheel or git** install — every consumer image
+— it is absent. Remediation is Step 2 of [06](06-stabilization-sequence.md); the deliverable
+is the packaging test, not the one-line config change.
+
+### G-4 — Reverse-import absence
+
+**Holds — verified exhaustively (E-24).** `grep -rniE "q_train|qlib[-_]trading"` over `src/`,
+`tests/`, `pyproject.toml`, `Dockerfile` and `.github/` returns **no match**. The single
+occurrence anywhere in the tracked tree is prose in `README.md:45` ("Using from a child app
+(e.g., qlib_trading)"). There is no import, no optional import, no entry point, no
+`extras_require`, and no test fixture referencing the consumer.
+
+The dependency graph is therefore one-way and acyclic, as §1 states and as the consumer's own
+baseline requires ("the extension must not import `q_train`"). This is the one delegated
+guarantee that is unconditionally satisfied.
+
+### G-5 — Tested revision identity, and what can be pinned
+
+**A fact, not yet a guarantee.** There is nothing to pin *to*: no tag, no release, no
+published distribution (`qlib-ext-se` and `qlib_ext_se` both 404 on PyPI — E-14), and no lock
+file on either side (E-19). Seven of the eight consumer Dockerfiles resolve `@main` (C-9).
+
+What this baseline can offer instead is **content identity**: all evidence here was produced
+against `src` tree `6f1b143` and `tests` tree `d91f05a`, which are identical at `77d8754`,
+at `049f406` (tip of `main`), and on this documentation branch (E-22). A release pin can be
+cut from any commit carrying those trees and this document set still describes it exactly.
+
+**What the consumer should pin, once Step 1 of [06](06-stabilization-sequence.md) lands:** a
+tag on a commit whose `src` tree is `6f1b143` — noting that such a tag would ship the F-02
+packaging defect, so Step 2 should precede the first tag the consumer actually adopts.
+
+### Guarantee summary
+
+| # | Guarantee requested by `qlib-trading` | Status here | Tracked as |
+|---|---|---|---|
+| G-1 | Supported pyqlib/Python matrix | **Partial** — pyqlib 0.9.7 + CPython 3.12 only; declared Python range is untested and partly unsatisfiable | F-05, F-17, V-1/V-5/V-7 |
+| G-2 | Registration idempotency | **Holds, verified** | C-2, E-10, E-20 |
+| G-3 | Package-data / calendar guarantees | **Does not hold in wheel/git installs**; the data itself is exact where present | F-02, F-07, F-13 |
+| G-4 | Reverse-import absence | **Holds, verified exhaustively** | §1, E-24 |
+| G-5 | Tested/pinned revision | **No pinnable artifact exists**; content identity supplied instead | F-08, F-09 |
+
+G-1, G-3 and G-5 are provider-side work, sequenced in [06](06-stabilization-sequence.md).
+None of the three can be closed by the consumer, and none is a defect of the consumer's
+baseline for having been delegated.

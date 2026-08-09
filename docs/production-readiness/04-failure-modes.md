@@ -1,7 +1,10 @@
 # 04 — Prioritized failure modes
 
-19 findings against commit `77d8754`. Every finding has a reproduction in
-[`evidence-log.md`](evidence-log.md); none is inferred from documentation alone.
+19 findings against `src` tree `6f1b143` / `tests` tree `d91f05a` — identical at `77d8754`
+and at `049f406`, tip of `main` (E-22). Every finding has a reproduction in
+[`evidence-log.md`](evidence-log.md); none is inferred from documentation alone. Round 2
+re-executed every reproduction and added none, removed none, and re-prioritised none; two
+findings (F-03, F-13) gained sharper evidence and are marked below.
 
 Priority is assigned by *reachability in the consumer's actual deployment path*, not by
 theoretical severity. A defect that only manifests in an install method nobody uses ranks
@@ -47,8 +50,11 @@ api_key = "68ed7524…"          # redacted here; full value is in the file and 
 - `gh repo view` reports `"visibility":"PUBLIC"`.
 - The value first appears in commit `55327d9`, 2025-10-24 22:38:41 +0200, at
   `ext/qlib-ext-se/pyproject.toml`, and survives the repository flattening into
-  `pyproject.toml` at `HEAD` (`77d8754`). Exposure to date: ~9.5 months.
-- It is present in 5 commits reachable from `main`.
+  `pyproject.toml` at `HEAD`. Exposure to date: ~9.5 months.
+- It is present in **7 commits reachable from `main`** and 8 across all refs (E-05, re-counted
+  in round 2). Round 1 recorded 5; the count grows with every commit that carries
+  `pyproject.toml` forward, including this baseline's own documentation commits — which is
+  itself a small illustration of why deletion at `HEAD` is not remediation.
 
 **What is verified and what is not.** Verified: a credential-shaped string is committed, in
 a public repository, and is present at `HEAD`. **Not verified: whether the token currently
@@ -110,7 +116,7 @@ snapshot answers. In the production image the exception propagates out of
 **Cross-repository reach today: none — and the reason is narrow.** `register()` does *not*
 sit on this path: with every calendar tier and all networking sabotaged, `register()` still
 completes (E-20), because the only calendar symbol it touches is the hardcoded
-`se_trading_hours()`. And `qlib-trading` at `c8e7c4b` imports no submodule of this package
+`se_trading_hours()`. And `qlib-trading` at `16425ce` imports no submodule of this package
 and calls nothing but `register()` (E-19). So the defect is shipped in every consumer image
 and is currently unreachable from consumer code — **contained by non-use, not by design**.
 The first consumer line that follows `README.md:29-30` and calls `build_xsto_trading_days`
@@ -132,19 +138,24 @@ assert the file's presence in a packaging test (see F-11).
 itself. `build_xsto_trading_days` calls `_ensure_cache_dir()` unconditionally at line 113,
 before any tier is attempted.
 
-**Evidence (E-11):** with the installed package directory made read-only, the first call
-raises, and no fallback tier is reached:
+**Evidence (E-11).** With the installed package directory made read-only, the call raises a
+`PermissionError` — at one of **two distinct sites**, depending on whether `_cache/` already
+exists. Round 2 reproduced both (E-22):
 
-```
-PermissionError: [Errno 13] Permission denied:
-'.../site-packages/qlib_ext_se/_cache/xsto_2025-06-18_2025-06-24.csv'
-```
+| Precondition | Where it raises | Message |
+|---|---|---|
+| `_cache/` absent | `_ensure_cache_dir()` (`calendar.py:19-20`), *before any tier runs* | `Permission denied: '…/site-packages/qlib_ext_se/_cache'` |
+| `_cache/` present but read-only | the cache write (`calendar.py:126`/`135`), *after* the tier has already produced the answer | `Permission denied: '…/site-packages/qlib_ext_se/_cache/xsto_2025-06-18_2025-06-24.csv'` |
+
+The distinction matters for remediation, not for severity: in the first case no tier is ever
+attempted, and in the second a correct result is computed and then discarded by an
+unrecoverable write. **Either way the caller gets an exception and no calendar**, and no
+fallback tier can help — the failure is in the cache layer that wraps all three.
 
 **Failure scenario:** any hardened container (read-only root filesystem), any non-root
 runtime user against a root-owned `site-packages`, or any shared/multi-tenant install. The
 package is unusable, and the error surfaces as a permission problem rather than a
-configuration one. Because the write is attempted before the tiers, *all three* fallbacks
-are defeated by it.
+configuration one.
 
 **Cross-repository reach today: none.** Same containment as F-02 — the write happens inside
 `build_xsto_trading_days`, which `register()` never calls (E-20) and the consumer never
@@ -340,7 +351,7 @@ or commit SHA, e.g. @v0.1.0 or @<COMMIT_SHA>" — the risk is documented and una
 
 **Failure scenario:** any commit to this repository's default branch silently changes the
 next consumer image build. Neither repository has a lock or constraints file (verified at
-`c8e7c4b` — E-19), there is no tag, and there is no review gate between the repositories, so
+`16425ce` — E-19), there is no tag, and there is no review gate between the repositories, so
 a change here can reach a consumer image without any consumer change. Two builds of the same
 consumer commit can produce different images — which also means a consumer failure cannot be
 reliably reproduced from its own git history, and no completed research artifact can be
@@ -375,7 +386,7 @@ implementation only strips a `.ST` suffix, so `'ABB.XSTO'` becomes the double-su
 `normalize_symbol` has **no test** (`defaults.py:13-20` is 0% covered, E-15).
 
 **Failure scenario:** currently inert — the consumer never imports it (verified exhaustively
-at `c8e7c4b`: no `from qlib_ext_se import …` and no submodule import anywhere in the consumer
+at `16425ce`: no `from qlib_ext_se import …` and no submodule import anywhere in the consumer
 tree, E-19). The trap is that a future consumer author follows `INSTRUCTIONS.md`, adopts the
 extension's helper for one code path, and silently produces instrument identifiers that do
 not join against the existing ones — the consumer's own `normalize_symbols` is already wired
@@ -444,6 +455,18 @@ minus an EODHD holiday list. Tier 2 reads the maintained XSTO exchange schedule.
 arithmetic cannot represent an unscheduled closure, a special session, or an exchange-level
 schedule change not expressed as a holiday record, so the two tiers can legitimately
 disagree — and tier 1 is *preferred* whenever a key is present.
+
+**Evidence (E-23), measured in round 2 rather than argued.** Tier 1 was exercised
+end-to-end with a stubbed holiday response (no network call, no credential used):
+
+| Tier-1 holiday response | Sessions returned for 2025 | Divergence from XSTO (249) |
+|---|---|---|
+| correct for the window (Midsummer's Eve stubbed in) | matches tier 2 exactly on that window | none |
+| **empty — the shape a degraded or schema-changed API returns** | **261** | **12 fabricated sessions**, including 2025-01-01, 2025-01-06, 2025-04-18, 2025-04-21, 2025-05-01, 2025-05-29 |
+
+So the mechanism works when the feed is right, and silently fabricates New Year's Day, Good
+Friday, Easter Monday, May Day and Ascension as trading days when it is not. The result is
+then cached (F-12) and served indefinitely.
 
 `_fetch_holidays_eodhd` catches every exception, logs at `debug`, and returns `None`
 (`calendar.py:85-87`); individual malformed date entries are also silently skipped

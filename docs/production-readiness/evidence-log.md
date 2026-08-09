@@ -1,7 +1,11 @@
 # Evidence log
 
-Every command executed for this baseline, with its actual output. Assessed commit:
-`77d8754` on `main`. Date: 2026-08-09.
+Every command executed for this baseline, with its actual output.
+
+**Assessed revision.** `src` tree `6f1b143`, `tests` tree `d91f05a` — identical at `77d8754`,
+at `049f406` (tip of `main`), and on this documentation branch. Tree hashes are used instead
+of a commit SHA precisely because documentation commits — including this one — move `HEAD`
+without changing the assessed code (E-22). Date: 2026-08-09.
 
 **Environment.** Host interpreter is CPython 3.13.14, on which this package cannot be
 installed (E-04). All execution therefore used a CPython 3.12.13 environment provisioned
@@ -25,6 +29,15 @@ sites") with an exhaustive enumeration. Runtime code is unchanged between the as
 commit `77d8754` and the commit these were run against — `git diff --stat 77d8754 <HEAD> --
 src tests pyproject.toml Dockerfile` is empty.
 
+**Round-2 addendum (2026-08-09).** Everything above was re-executed against the current tip
+of both repositories; the result is **E-22**, which lists each round-1 measurement and
+whether it reproduced. **E-23** and **E-24** are new evidence, added where round 1 argued
+from code reading rather than execution (calendar tier 1) or asserted a negative without
+showing the search (reverse-import absence). Four entries were corrected for staleness or
+imprecision rather than for being wrong — E-01 (CI history), E-05 (commit count), E-11 (two
+distinct `PermissionError` sites), E-15 (a missing precondition that made the command
+non-reproducible). Those corrections are made in place below and itemised in E-22.
+
 ---
 
 ## E-01 — Repository visibility, CI history, open PRs
@@ -33,19 +46,20 @@ src tests pyproject.toml Dockerfile` is empty.
 $ gh repo view --json name,visibility,url
 {"name":"qlib_ext_se","url":"https://github.com/maxilirator/qlib_ext_se","visibility":"PUBLIC"}
 
-$ gh run list --limit 8
-completed  success  docs: production-readiness baseline for qlib_ext_se   CI  agent/task-…  pull_request  1m17s  2026-08-09T18:39:17Z
-completed  success  docs: add evidence-backed production-readiness baseline CI  agent/task-…  push          1m20s  2026-08-09T18:38:52Z
-completed  success  Merge pull request #2 from maxilirator/chore/flatten…   CI  chore/flatten…  push        1m14s  2025-10-24T21:19:24Z
-completed  success  Merge pull request #2 from maxilirator/chore/flatten…   CI  main            push        1m22s  2025-10-24T21:15:41Z
-completed  success  chore(repo): flatten package to repository root…       CI  chore/flatten…  pull_request 2m27s  2025-10-24T21:13:12Z
-completed  success  chore(repo): run CI from repo root, relocate README…   CI  chore/flatten…  push        1m30s  2025-10-24T21:10:02Z
-completed  failure  chore(repo): flatten package to repository root…       CI  chore/flatten…  push          19s   2025-10-24T21:03:00Z
-completed  failure  Running Copilot                                        Copilot          dynamic      14m28s  2025-10-24T18:52:48Z
+$ gh run list --limit 6          # refreshed in round 2; the four runs below the fold are
+                                 # the 2025-10-24 runs recorded in round 1
+completed  success  docs: make cross-repo contract verifiable …            CI  main                       push          1m21s  2026-08-09T19:20:05Z
+completed  success  docs: make the cross-repository contract … verifiable  CI  agent/task-c77d408e-d9ae1c83  pull_request  1m21s  2026-08-09T19:17:04Z
+completed  success  docs: make cross-repo contract verifiable …            CI  agent/task-c77d408e-d9ae1c83  push          1m24s  2026-08-09T19:16:43Z
+completed  success  docs: evidence-backed production-readiness baseline …  CI  main                       push          1m19s  2026-08-09T18:58:51Z
+completed  success  docs: evidence-backed production-readiness baseline    CI  agent/task-49eeb3b6-561823f4  pull_request  1m18s  2026-08-09T18:56:33Z
+completed  success  docs: evidence-backed production-readiness baseline    CI  agent/task-49eeb3b6-561823f4  push          1m26s  2026-08-09T18:56:04Z
 ```
 
-Repository is **public**. CI is green on all recent runs. Substantive development is a
-single day, 2025-10-24.
+Repository is **public**. CI is green on every run since 2025-10-24. Development of the
+shipped package is a single day, 2025-10-24; every run above is documentation from this
+initiative, which is why a green CI history says nothing about the findings in
+[04](04-failure-modes.md) — it has been green through all of them.
 
 ---
 
@@ -145,19 +159,32 @@ api_key = "68ed7524…"        # redacted
 
 Every commit in the repository containing the value, with the path it occupied:
 
+Re-counted in round 2 (the round-1 figure was 5 commits; documentation commits have since
+carried `pyproject.toml` forward):
+
 ```console
-$ for c in $(git rev-list --all); do git grep -q '68ed7524…' $c && \
-      echo "$(git log -1 --format='%h %ad %s' --date=short $c)" && git grep -l '68ed7524…' $c; done
-77d8754 2025-10-24 Merge pull request #2 …            77d8754:pyproject.toml
-1ac8000 2025-10-24 chore(repo): run CI from repo root  1ac8000:pyproject.toml
-12438d4 2025-10-24 chore(repo): flatten package …      12438d4:pyproject.toml
-5fdcc87 2025-10-24 docs: add child app usage guide     5fdcc87:ext/qlib-ext-se/pyproject.toml
-55327d9 2025-10-24 feat(calendar): regenerate XSTO …   55327d9:ext/qlib-ext-se/pyproject.toml
+$ for c in $(git rev-list main); do git grep -q '68ed7524…' $c && \
+      echo "$(git log -1 --format='%h %ad %s' --date=short $c)"; done
+049f406 2026-08-09 docs: make cross-repo contract verifiable … (#5)
+dce851e 2026-08-09 docs: evidence-backed production-readiness baseline … (#4)
+77d8754 2025-10-24 Merge pull request #2 …
+1ac8000 2025-10-24 chore(repo): run CI from repo root …
+12438d4 2025-10-24 chore(repo): flatten package …
+5fdcc87 2025-10-24 docs: add child app usage guide          (ext/qlib-ext-se/pyproject.toml)
+55327d9 2025-10-24 feat(calendar): regenerate XSTO …        (ext/qlib-ext-se/pyproject.toml)
+
+7 commits reachable from main; 8 across all refs (ab7641c adds the pre-merge documentation
+commit).
+
+$ git log --format='%H %ad' --date=iso -S'68ed7524…' --reverse -- . | head -1
+55327d917efcca6bc173186afae6a0c3c3803a1f 2025-10-24 22:38:41 +0200
 ```
 
 Introduced in `55327d9`, **2025-10-24 22:38:41 +0200**, at `ext/qlib-ext-se/pyproject.toml`;
 carried through the repository flattening to `pyproject.toml` at `HEAD`. Public since then
-(E-01) — approximately 9.5 months as of this assessment.
+(E-01) — approximately 9.5 months as of this assessment. The count rises with every commit
+touching any file alongside `pyproject.toml`, which is a concrete reason deletion at `HEAD`
+is hygiene and rotation is remediation.
 
 Reachability from code:
 
@@ -306,16 +333,27 @@ The four files are the residue of the four `is_trading_day` calls in
 `tests/test_calendar_dates.py` — one file per queried date (F-12).
 
 With the installed package directory made read-only, simulating a hardened container or a
-root-owned `site-packages` under a non-root runtime user:
+root-owned `site-packages` under a non-root runtime user. Round 2 ran **both** preconditions,
+because the failure site differs:
 
 ```console
-$ chmod -R a-w …/site-packages/qlib_ext_se
+# (a) _cache/ does not exist — fails in _ensure_cache_dir(), before any tier is attempted
+$ rm -rf …/site-packages/qlib_ext_se/_cache && chmod -R a-w …/site-packages/qlib_ext_se
+$ python -c "…build_xsto_trading_days(date(2025,6,18), date(2025,6,24))"
+RESULT: RAISED PermissionError [Errno 13] Permission denied:
+'…/site-packages/qlib_ext_se/_cache'
+
+# (b) _cache/ exists but is read-only — the tier runs, then the cache write fails
+$ mkdir -p …/site-packages/qlib_ext_se/_cache && chmod -R a-w …/site-packages/qlib_ext_se
 $ python -c "…build_xsto_trading_days(date(2025,6,18), date(2025,6,24))"
 RESULT: RAISED PermissionError [Errno 13] Permission denied:
 '…/site-packages/qlib_ext_se/_cache/xsto_2025-06-18_2025-06-24.csv'
 ```
 
-Supports F-03. Write permissions were restored immediately afterwards.
+Round 1 recorded only (b). Both end the same way for the caller — an exception and no
+calendar — but (b) discards a correct answer that was already computed, which is the variant
+worth quoting when arguing that cache-write failure should be non-fatal. Supports F-03. Write
+permissions were restored immediately afterwards in both runs.
 
 ---
 
@@ -420,7 +458,15 @@ Supports F-08.
 
 ## E-15 — Statement coverage
 
+**Precondition, added in round 2: the calendar cache must be empty.** `pytest` writes
+`src/qlib_ext_se/_cache/` (E-11, F-12), and a second run of the identical command reports
+**52% / calendar.py 34% / config.py 31%**, because the cached tier-0 hit returns before
+`get_eodhd_api_key()` and the tier logic execute. Both figures were reproduced in round 2;
+62% is the clean-tree number, which is what CI and a fresh checkout measure. The command as
+recorded in round 1 omitted the `rm -rf`, so it was not reproducible as written.
+
 ```console
+$ rm -rf src/qlib_ext_se/_cache
 $ python -m coverage run --source=src/qlib_ext_se -m pytest -q && python -m coverage report -m
 Name                          Stmts   Miss  Cover   Missing
 src/qlib_ext_se/__init__.py       3      0   100%
@@ -500,7 +546,9 @@ file is silently ignored. Supports F-17.
 ## E-19 — The consumer's complete coupling surface, at a pinned SHA
 
 Every consumer-side citation in [02](02-cross-repository-interfaces.md) resolves against one
-commit of `maxilirator/qlib-trading`:
+commit of `maxilirator/qlib-trading`. The enumeration below was made at `c8e7c4b` in round 1
+and re-derived unchanged at `16425ce` in round 2 — every count below is identical at both,
+because the only commit between them touches `docs/` (E-22).
 
 ```console
 $ git -C <qlib-trading> rev-parse main
@@ -522,9 +570,17 @@ $ git -C <qlib-trading> grep -nE 'qlib_ext_se\.(calendar|defaults|config|compat|
 (no matches)
 $ git -C <qlib-trading> grep -lE 'qlib_ext_se|qlib-ext-se' c8e7c4b -- 'docker/Dockerfile*' | wc -l
 8
-$ git -C <qlib-trading> ls-files c8e7c4b | grep -icE 'requirements.*\.txt|\.lock|constraints'
+$ git -C <qlib-trading> ls-tree -r --name-only c8e7c4b | grep -icE 'requirements.*\.txt|\.lock|constraints'
 0
 ```
+
+**Correction (round 2).** Round 1 recorded the last command as
+`git ls-files c8e7c4b | grep -ic …`. That form is wrong: `ls-files` takes a pathspec, not a
+revision, so it lists nothing and reports `0` **regardless of whether lock files exist** —
+the command could not have detected them. Re-run correctly with `ls-tree -r --name-only` at
+both `c8e7c4b` and `16425ce`, the answer is genuinely `0`, so the conclusion stands; the
+recorded command did not support it. This is the only round-1 command that failed to
+re-derive its own claim.
 
 Every one of the 30 `.register()` matches is `qlib_ext_se.register()` or
 `qles.register()` (verified: filtering those two spellings out leaves an empty set).
@@ -611,3 +667,148 @@ exit=0
 were created under `/workspace/artifacts/d9ae1c83-…/verify/`, never in the working tree; the
 `-e` install therefore did not write a `_cache/` directory into the repository, cf. E-11 and
 F-12.)
+
+---
+
+## E-22 — Round-2 re-verification of every round-1 measurement
+
+Both repositories re-pinned, then every measurement above re-executed on CPython 3.12.13
+provisioned with `uv`, under `/workspace/artifacts/831ab5fa-…/verify/`.
+
+**Pins.** The provider pin is stated as tree hashes because round-1's commit pin went stale
+the moment its own documentation was merged:
+
+```console
+$ git rev-parse 77d8754:src   049f406:src   HEAD:src
+6f1b143496a56dbe3693735581918351727a41e6      (all three identical)
+$ git rev-parse HEAD:tests
+d91f05a541db49216deffac615301d8c62b25a60
+$ git diff --stat 77d8754 HEAD -- src tests pyproject.toml Dockerfile .github
+(empty)
+
+$ git -C <qlib-trading> rev-parse main
+16425ce9f8fc85d717d9d84164418301e72dc69b        # round 1 used c8e7c4b
+$ git -C <qlib-trading> diff --name-only c8e7c4b 16425ce -- . ':!docs'
+(empty)
+$ for p in src scripts tests docker pyproject.toml; do \
+      echo "$p $(git -C <qlib-trading> rev-parse 16425ce:$p) $(git -C <qlib-trading> rev-parse c8e7c4b:$p)"; done
+src           79e0cb75…  79e0cb75…
+scripts       05d558a4…  05d558a4…
+tests         9c4ddea6…  9c4ddea6…
+docker        bc868531…  bc868531…
+pyproject.toml d1436994… d1436994…
+```
+
+The consumer's `main` advanced by one commit — `16425ce`, *"docs: clarify qlib extension
+integration contract"* — which touched only `docs/production-readiness/`. **Every consumer
+citation in [02](02-cross-repository-interfaces.md) therefore resolves identically under both
+SHAs**, which was checked file-by-file, not inferred from the diff: `pyproject.toml:11-15`,
+`docker/Dockerfile.gpu:61-62,68-81`, `.gpu.arm:57-60`, `.gpu.lite:33-35,42`,
+`.app-gpu-wheel:51-53,60-63`, `.app-gpu-wheel-cupybase:34-36,42-45`, `.runpod-retune:62-64`,
+`.cpu:24,41-46`, `.oracle-continuation-cloud:35-36`, `compose.ghcr.gpu.yaml:14`,
+`build_runpod_runtime_requirements.py:9-18`, `launcher.py:38-42`, `stress_test.py:20-24`,
+`borsdata_sync.py:23,35,205-213`, `walkforward_predict_and_merge.py:95-96`,
+`stress_test_frozen_production.py:280-281`, `probe_qlib_features.py:57-59,86-93`,
+`qlib_data_connector.py:24-31,170-173,176,178-185,190-199,217-218`,
+`eodhd_utils.py:24-36`, `tests/test_qlib_data_connector.py:13`.
+
+**Reproduction result, entry by entry:**
+
+| Entry | Round-1 value | Round-2 result |
+|---|---|---|
+| E-01 | public repo, CI green | reproduced; **run list refreshed** — six 2026-08-09 runs added, all green |
+| E-03 | `4 passed, 1 skipped` | reproduced exactly |
+| E-04 | cp38–cp312 wheels, no sdist | reproduced: 18 wheels, ABI tags `cp38 cp39 cp310 cp311 cp312`, 0 sdists |
+| E-05 | token at `pyproject.toml:43-44`, 5 commits | token reproduced; **count corrected to 7 reachable from `main`, 8 across all refs** |
+| E-06 | `CSV present in wheel: False` | reproduced exactly — same 11 wheel entries |
+| E-07 | fallback absent, exception propagates | reproduced exactly in a fresh wheel-installed venv |
+| E-08 | 9,041 sessions, zero divergence | reproduced exactly, both directions |
+| E-09 | 4 early closes in 2025 at 13:00 | reproduced exactly (2025-04-17, -04-30, -05-28, -10-31) |
+| E-10 | 510 se bars, `cn` 240, config, restore | reproduced exactly, plus an explicit idempotency assertion on `_default_region_config` size |
+| E-11 | `PermissionError` on read-only install | reproduced; **two distinct failure sites documented** (see E-11) |
+| E-12 | consumer pins and install methods | every cited file and line re-read at `16425ce` and unchanged (list above) |
+| E-13 | gate accepts only 0.9.7 | reproduced exactly for 0.9.3 / 0.9.6 / 0.9.8 / 0.9.7 |
+| E-14 | both names 404 on PyPI | reproduced exactly |
+| E-15 | 62% total, per-module table | reproduced exactly **after adding the missing `rm -rf src/qlib_ext_se/_cache` precondition**; 52% without it |
+| E-16 | 6 divergent `normalize_symbol` outputs | reproduced exactly, both implementations in one process |
+| E-17 | container smoke test, `EXIT CODE: 5` | reproduced exactly |
+| E-18 | TOML path inert without `tomllib` | reproduced exactly |
+| E-19 | 29 import files / 30 calls / 28 files / 0 `unregister` / 8 Dockerfiles / 0 lock files | counts reproduced exactly at `16425ce`; **one recorded command was invalid** — `git ls-files <sha>` cannot detect lock files at all, corrected to `git ls-tree -r --name-only` in E-19. The `0` answer is unchanged when measured correctly |
+| E-20 | `register()` survives full sabotage | reproduced exactly |
+| E-21 | suite green at the documentation commit | reproduced: `4 passed, 1 skipped` at this round's tree as well |
+| E-02 | 204 distributions, 942 MB | **environment-dependent, restated**: a wheel-only install (no pytest) resolves 197 distributions / 939 MB on 2026-08-09. Round 1's 204 included `pytest`. The point of the entry — a 229-statement package pulling ~200 distributions and ~1 GB — is unchanged |
+
+**Nothing in [04](04-failure-modes.md) changed as a result.** No finding was added, removed,
+downgraded or upgraded. The four corrections above are to the evidence record, not to the
+findings it supports.
+
+---
+
+## E-23 — Calendar tier 1 exercised, and its divergence from tier 2 quantified
+
+Round 1 described tier 1 (F-13) from code reading: it is 0% covered by the test suite (E-15),
+and no evidence showed whether it even functions. Round 2 exercised it with a **stubbed**
+holiday response — no network call was made and the committed credential was not used.
+
+**(a) Tier 1 works when the holiday feed is correct.** Stubbing Midsummer's Eve as the only
+holiday for 2025-06-16 → 2025-06-27:
+
+```python
+cal._fetch_holidays_eodhd = lambda s, e, k: {date(2025, 6, 20)}
+os.environ["EODHD_API_KEY"] = "STUB"
+cal.build_xsto_trading_days(date(2025,6,16), date(2025,6,27), use_cache=False)
+```
+
+```
+tier1 result rows: 9   first 2025-06-16  last 2025-06-27
+2025-06-20 present: False
+tier2 rows: 9
+tier1-only: []   tier2-only: []
+```
+
+Exact agreement with `pandas-market-calendars` on that window. The tier-1 mechanism is
+sound; the risk is its *input*, not its code.
+
+**(b) An empty holiday response fabricates 12 sessions in one year.** This is the shape a
+degraded, rate-limited, or schema-changed API returns — `_fetch_holidays_eodhd` returns an
+empty set rather than `None`, so `build_xsto_trading_days` accepts the synthesized result
+(`calendar.py:122` accepts any non-`None`, non-empty index — it cannot distinguish "no
+holidays in range" from "the holiday feed told us nothing") instead of falling through to
+tier 2:
+
+```python
+cal._fetch_holidays_eodhd = lambda *a, **k: set()
+```
+
+```
+tier1 (empty holiday response) sessions 2025: 261
+tier2 (pandas-market-calendars) sessions 2025: 249
+days tier1 calls trading that XSTO does not: 12
+  e.g. 2025-01-01, 2025-01-06, 2025-04-18, 2025-04-21, 2025-05-01, 2025-05-29
+```
+
+New Year's Day, Epiphany, Good Friday, Easter Monday, May Day and Ascension are all reported
+as trading days. The result is then written to the cache (F-12) with no record of which tier
+produced it, and the only trace of the degradation is a `debug`-level log line
+(`calendar.py:86`). Supports F-13, and sharpens F-11 — this is precisely what the 0%-covered
+tier does when it goes wrong.
+
+---
+
+## E-24 — Reverse-import absence (provider guarantee G-4)
+
+The consumer's baseline requires that "the extension must not import `q_train`" and records
+that it cannot verify this from its own checkout. Verified here exhaustively:
+
+```console
+$ grep -rniE "q_train|qlib[-_]trading" src/ tests/ pyproject.toml Dockerfile .github/
+(no matches)
+
+$ grep -rn "qlib_trading\|qlib-trading" README.md INSTRUCTIONS.md
+README.md:45:## Using from a child app (e.g., qlib_trading)
+```
+
+The only occurrence anywhere in the tracked tree is that one prose heading. There is no
+import, no conditional import, no entry point, no extra, and no test fixture referencing the
+consumer. The dependency edge is one-way and acyclic. Supports [02 §1](02-cross-repository-interfaces.md)
+and G-4 in [02 §8](02-cross-repository-interfaces.md).
